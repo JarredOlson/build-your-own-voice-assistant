@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+            integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Natural Language Understanding Example</title>
+    <script src="lib/recorder.js"></script>
+    <style type='text/css'>
+        audio {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Natural Language Understanding Example</h1>
+
+<img style="height: 150px;" id="record_button" src="img/record_button.png"/>
+
+<audio id="playback"></audio>
+
+<h2>Log</h2>
+<pre id="log"></pre>
+
+<script>
+    var recorder;
+
+    $(document).on('click', '#record_button', function () {
+        recorder.start();
+        setTimeout(function () {
+            recorder.stop();
+        }, 4000);
+    });
+
+    doInit();
+    function doInit() {
+        if (!Recorder.isRecordingSupported()) {
+            return screenLogger("Recording features are not supported in your browser.");
+        }
+        recorder = new Recorder({
+            monitorGain: 0,
+            numberOfChannels: 2,
+            wavBitDepth: 16,
+            encoderPath: "lib/waveWorker.min.js"
+        });
+        recorder.addEventListener("start", function (e) {
+            disableRecordButton();
+        });
+        recorder.addEventListener("stop", function (e) {
+            disableRecordButton();
+        });
+        recorder.addEventListener("streamError", function (e) {
+            screenLogger('Error encountered: ' + e.error.name);
+        });
+        recorder.addEventListener("streamReady", function (e) {
+            enableRecordButton();
+        });
+        recorder.addEventListener("dataAvailable", function (e) {
+
+
+            var dataBlob = new Blob([e.detail], {type: 'audio/wav'});
+            $.ajax({
+                url: 'https://service.us.apiconnect.ibmcloud.com/gws/apigateway/api/b9295e6c011185a1acafeb26d61e15ad49b5d48325f7ce16ed84996227602ce5/api/naturalLanguageUnderstanding',
+                type: 'POST',
+                data: dataBlob,
+                processData: false,
+                headers: {
+                    'Content-Type': 'audio/wav'
+                },
+                success: function (data, textStatus, jqXHR) {
+                    screenLogger(JSON.stringify(data, null, 2));
+                    doInit();
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    screenLogger(jqXHR);
+                    doInit();
+                }
+            });
+
+
+        });
+        recorder.initStream();
+    }
+
+    function disableRecordButton() {
+        $('#record_button').css('opacity', '0.4');
+    }
+    function enableRecordButton() {
+        $('#record_button').css('opacity', '1.0');
+    }
+
+    function screenLogger(text, data) {
+        log.innerHTML += "\n" + text + " " + (data || '');
+    }
+</script>
+</body>
+</html>
